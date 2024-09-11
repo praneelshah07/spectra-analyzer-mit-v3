@@ -14,7 +14,7 @@ from scipy.cluster.hierarchy import linkage
 import requests
 
 # Preload ZIP file from GitHub and extract CSV inside it
-ZIP_URL = 'https://raw.githubusercontent.com/praneelshah07/MIT-Project/main/ASM_Vapor_Spectra (editted).csv.zip'
+ZIP_URL = 'https://raw.githubusercontent.com/praneelshah07/MIT-Project/main/ASM_Vapor_Spectra.csv.zip'
 
 def load_data_from_zip(zip_url):
     try:
@@ -85,6 +85,9 @@ if uploaded_file is not None:
     elif uploaded_file.name.endswith('.csv'):
         data = pd.read_csv(uploaded_file)
         st.write("Using uploaded CSV file data.")
+
+        columns_to_display = ["Formula", "IUPAC chemical name", "SMILES", "Molecular Weight", "Boiling Point (oC)"]
+        data = data[columns_to_display]
 
 # Check if data exists (either preloaded or uploaded)
 if data is not None:

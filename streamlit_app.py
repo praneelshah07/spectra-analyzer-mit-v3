@@ -95,10 +95,10 @@ if data is not None:
     data['Normalized_Spectra_Intensity'] = data['Raw_Spectra_Intensity'].apply(lambda x: x / max(x))
 
     columns_to_display = ["Formula", "IUPAC chemical name", "SMILES", "Molecular Weight", "Boiling Point (oC)"]
-    data = data[columns_to_display]
+    headerdata = data[columns_to_display]
 
     # Preview the dataframe to ensure data is loaded correctly
-    st.write(data.head())
+    st.write(headerdata.head())
 
 
 

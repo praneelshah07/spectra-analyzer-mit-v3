@@ -98,7 +98,7 @@ if data is not None:
     headerdata = data[columns_to_display]
 
     # Preview the dataframe to ensure data is loaded correctly
-    st.write(headerdata.head())
+    st.write(headerdata)
 
 
 

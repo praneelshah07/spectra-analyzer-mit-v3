@@ -116,16 +116,19 @@ if data is not None:
                     ax.text(peak_wavelength, peak_intensity + 0.05, f'{round(peak_wavelength, 1)}', 
                             fontsize=10, ha='center', color=color_palette[i % len(color_palette)])
 
+        # Customize plot axes and ticks
         ax.set_xscale('log')
         ax.set_xlim([2.5, 20])
 
         major_ticks = [3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 20]
-        ax.set_xticks(major_ticks, minor=False)
-        ax.set_xticklabels(["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "15", "20"])
+        ax.set_xticks(major_ticks)
+
+        # Ensure that the number of labels matches the number of ticks
+        ax.set_xticklabels([str(tick) for tick in major_ticks])
 
         ax.tick_params(direction="in",
-                       labelbottom=True, labeltop=False, labelleft=True, labelright=False,
-                       bottom=True, top=True, left=True, right=True)
+            labelbottom=True, labeltop=False, labelleft=True, labelright=False,
+            bottom=True, top=True, left=True, right=True)
 
         ax.set_xlabel("Wavelength ($\mu$m)", fontsize=22)
         ax.set_ylabel("Absorbance (Normalized to 1)", fontsize=22)

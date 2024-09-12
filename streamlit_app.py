@@ -128,6 +128,13 @@ if data is not None:
                     ax.set_ylabel("Molecules")
 
                     st.pyplot(fig)
+
+             # Add a download button for the sonogram/heatmap
+                buf = io.BytesIO()
+                fig.savefig(buf, format='png')
+                buf.seek(0)
+                st.download_button(label="Download Sonogram as PNG", data=buf, file_name="sonogram.png", mime="image/png")
+                
             else:
                 st.error("No valid molecules selected for the sonogram.")
         else:

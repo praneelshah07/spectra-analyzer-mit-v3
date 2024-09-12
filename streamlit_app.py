@@ -11,7 +11,7 @@ import io
 from scipy.signal import find_peaks
 import requests
 
-# Preload ZIP file from GitHub and extract CSV inside it
+# preloaded zip
 ZIP_URL = 'https://raw.githubusercontent.com/praneelshah07/MIT-Project/main/ASM_Vapor_Spectra.csv.zip'
 
 def load_data_from_zip(zip_url):
@@ -39,15 +39,15 @@ def load_data_from_zip(zip_url):
         st.error(f"Error extracting CSV from ZIP: {e}")
         return None
 
-# Set up the Streamlit app
+# set up app
 st.title("Spectra Visualization App")
 
-# Load data from the zip file on GitHub
+# load data from zip
 data = load_data_from_zip(ZIP_URL)
 if data is not None:
     st.write("Using preloaded data from GitHub zip file.")
 
-# File uploader for manual CSV or ZIP file
+# file uploader
 uploaded_file = st.file_uploader("If you would like to enter another dataset, insert it here", type=["csv", "zip"])
 
 if uploaded_file is not None:
@@ -116,14 +116,14 @@ if data is not None:
                     ax.text(peak_wavelength, peak_intensity + 0.05, f'{round(peak_wavelength, 1)}', 
                             fontsize=10, ha='center', color=color_palette[i % len(color_palette)])
 
-        # Customize plot axes and ticks
+        # customize plot
         ax.set_xscale('log')
         ax.set_xlim([2.5, 20])
 
         major_ticks = [3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 20]
         ax.set_xticks(major_ticks)
 
-        # Ensure that the number of labels matches the number of ticks
+        # number of label matches number of ticks
         ax.set_xticklabels([str(tick) for tick in major_ticks])
 
         ax.tick_params(direction="in",
@@ -138,7 +138,7 @@ if data is not None:
 
         st.pyplot(fig)
 
-        # Add a download button for the plot
+        # download button
         buf = io.BytesIO()
         fig.savefig(buf, format='png')
         buf.seek(0)

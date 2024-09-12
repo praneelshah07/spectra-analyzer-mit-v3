@@ -9,9 +9,11 @@ import random
 import zipfile
 import io
 from scipy.signal import find_peaks
+from scipy.spatial.distance import pdist, squareform
+from scipy.cluster.hierarchy import linkage
 import requests
 
-# preloaded zip
+# Preloaded zip
 ZIP_URL = 'https://raw.githubusercontent.com/praneelshah07/MIT-Project/main/ASM_Vapor_Spectra.csv.zip'
 
 def load_data_from_zip(zip_url):
@@ -39,15 +41,22 @@ def load_data_from_zip(zip_url):
         st.error(f"Error extracting CSV from ZIP: {e}")
         return None
 
-# set up app
+# Function to compute the ordered distance matrix
+def compute_serial_matrix(dist_mat, method="ward"):
+    res_linkage = linkage(dist_mat, method=method)
+    res_order = np.array(res_linkage[:, :2], dtype=int).flatten()
+    ordered_dist_mat = dist_mat[res_order][:, res_order]
+    return ordered_dist_mat, res_order, res_linkage
+
+# Set up app
 st.title("Spectra Visualization App")
 
-# load data from zip
+# Load data from zip
 data = load_data_from_zip(ZIP_URL)
 if data is not None:
     st.write("Using preloaded data from GitHub zip file.")
 
-# file uploader
+# File uploader
 uploaded_file = st.file_uploader("If you would like to enter another dataset, insert it here", type=["csv", "zip"])
 
 if uploaded_file is not None:
@@ -116,14 +125,14 @@ if data is not None:
                     ax.text(peak_wavelength, peak_intensity + 0.05, f'{round(peak_wavelength, 1)}', 
                             fontsize=10, ha='center', color=color_palette[i % len(color_palette)])
 
-        # customize plot
+        # Customize plot
         ax.set_xscale('log')
         ax.set_xlim([2.5, 20])
 
         major_ticks = [3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 20]
         ax.set_xticks(major_ticks)
 
-        # number of label matches number of ticks
+        # Number of label matches number of ticks
         ax.set_xticklabels([str(tick) for tick in major_ticks])
 
         ax.tick_params(direction="in",
@@ -138,8 +147,35 @@ if data is not None:
 
         st.pyplot(fig)
 
-        # download button
+        # Download button
         buf = io.BytesIO()
         fig.savefig(buf, format='png')
         buf.seek(0)
         st.download_button(label="Download Plot as PNG", data=buf, file_name="spectra_plot.png", mime="image/png")
+
+    # Add sonogram (heatmap) plotting functionality
+    plot_sonogram = st.checkbox('Plot Sonogram for Selected Molecules', value=False)
+    
+    if plot_sonogram:
+        # Filter data based on selected SMILES
+        filtered_data = data[data['SMILES'].isin(selected_smiles)]
+        if not filtered_data.empty:
+            # Create a numpy array of spectra intensities
+            intensity_data = np.array(filtered_data['Normalized_Spectra_Intensity'].tolist())
+            
+            # Compute the distance matrix and serial matrix
+            dist_mat = squareform(pdist(intensity_data))
+            ordered_dist_mat, res_order, res_linkage = compute_serial_matrix(dist_mat, "ward")
+
+            # Plot the sonogram
+            fig, ax = plt.subplots(figsize=(12, 12))
+            ratio = int(len(intensity_data[0]) / len(intensity_data))
+            ax.imshow(np.array(intensity_data)[res_order], aspect=ratio, extent=[4000, 500, len(ordered_dist_mat), 0])
+            ax.set_xlabel("Wavenumber")
+            ax.set_ylabel("Molecules")
+            
+            # Show the plot in Streamlit
+            st.pyplot(fig)
+
+        else:
+            st.write("Please select valid molecules to display the sonogram.")

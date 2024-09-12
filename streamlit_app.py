@@ -143,3 +143,31 @@ if data is not None:
         fig.savefig(buf, format='png')
         buf.seek(0)
         st.download_button(label="Download Plot as PNG", data=buf, file_name="spectra_plot.png", mime="image/png")
+
+
+# Add sonogram (heatmap) plotting functionality
+    plot_sonogram = st.checkbox('Plot Sonogram for Selected Molecules', value=False)
+    
+    if plot_sonogram:
+        # Filter data based on selected SMILES
+        filtered_data = data[data['SMILES'].isin(selected_smiles)]
+        if not filtered_data.empty:
+            # Create a numpy array of spectra intensities
+            intensity_data = np.array(filtered_data['Normalized_Spectra_Intensity'].tolist())
+            
+            # Compute the distance matrix and serial matrix
+            dist_mat = squareform(pdist(intensity_data))
+            ordered_dist_mat, res_order, res_linkage = compute_serial_matrix(dist_mat, "ward")
+
+            # Plot the sonogram
+            fig, ax = plt.subplots(figsize=(12, 12))
+            ratio = int(len(intensity_data[0]) / len(intensity_data))
+            ax.imshow(np.array(intensity_data)[res_order], aspect=ratio, extent=[4000, 500, len(ordered_dist_mat), 0])
+            ax.set_xlabel("Wavenumber")
+            ax.set_ylabel("Molecules")
+            
+            # Show the plot in Streamlit
+            st.pyplot(fig)
+
+        else:
+            st.write("Please select valid molecules to display the sonogram.")

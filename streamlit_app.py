@@ -87,9 +87,7 @@ if data is not None:
     confirm_button = st.button('Confirm Selection and Start Plotting')
 
     if confirm_button:
-        # Display the "please wait" message
-        wait_placeholder = st.empty()
-        wait_placeholder.write("The code will take some time to run, please wait...")
+        st.write("The code will take some time to run, please wait...")
 
         fig, ax = plt.subplots(figsize=(16, 6.5), dpi=100)
         wavenumber = np.arange(4000, 500, -1)
@@ -118,27 +116,25 @@ if data is not None:
                     ax.text(peak_wavelength, peak_intensity + 0.05, f'{round(peak_wavelength, 1)}', 
                             fontsize=10, ha='center', color=color_palette[i % len(color_palette)])
 
+        # Customize plot axes and ticks
         ax.set_xscale('log')
         ax.set_xlim([2.5, 20])
 
         major_ticks = [3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 20]
         ax.set_xticks(major_ticks)
 
-        # Set tick labels based on the major ticks
+        # Ensure that the number of labels matches the number of ticks
         ax.set_xticklabels([str(tick) for tick in major_ticks])
 
         ax.tick_params(direction="in",
-                       labelbottom=True, labeltop=False, labelleft=True, labelright=False,
-                       bottom=True, top=True, left=True, right=True)
+            labelbottom=True, labeltop=False, labelleft=True, labelright=False,
+            bottom=True, top=True, left=True, right=True)
 
         ax.set_xlabel("Wavelength ($\mu$m)", fontsize=22)
         ax.set_ylabel("Absorbance (Normalized to 1)", fontsize=22)
 
         if selected_smiles:
             ax.legend()
-
-        # Clear the "please wait" message after the plot is done
-        wait_placeholder.empty()
 
         st.pyplot(fig)
 

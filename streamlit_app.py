@@ -108,13 +108,19 @@ if data is not None:
                 # Create a numpy array of spectra intensities
                 intensity_data = np.array(filtered_data['Normalized_Spectra_Intensity'].tolist())
 
-                # Ensure there is enough data to compute the distance matrix
-                if len(intensity_data) > 1:
+                # If only one molecule is selected, bypass the distance matrix and clustering
+                if len(intensity_data) == 1:
+                    fig, ax = plt.subplots(figsize=(12, 12))
+                    ax.imshow(intensity_data, aspect='auto', extent=[4000, 500, 1, 0])
+                    ax.set_xlabel("Wavenumber")
+                    ax.set_ylabel("Molecule")
+                    st.pyplot(fig)
+                else:
                     # Compute the distance matrix and serial matrix
                     dist_mat = squareform(pdist(intensity_data))
                     ordered_dist_mat, res_order, res_linkage = compute_serial_matrix(dist_mat, "ward")
 
-                    # Plot the sonogram
+                    # Plot the sonogram for multiple molecules
                     fig, ax = plt.subplots(figsize=(12, 12))
                     ratio = int(len(intensity_data[0]) / len(intensity_data))
                     ax.imshow(np.array(intensity_data)[res_order], aspect=ratio, extent=[4000, 500, len(ordered_dist_mat), 0])
@@ -122,8 +128,6 @@ if data is not None:
                     ax.set_ylabel("Molecules")
 
                     st.pyplot(fig)
-                else:
-                    st.error("Not enough data to compute the sonogram. Please select more molecules.")
             else:
                 st.error("No valid molecules selected for the sonogram.")
         else:

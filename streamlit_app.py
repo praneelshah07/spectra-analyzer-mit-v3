@@ -10,7 +10,7 @@ import zipfile
 import io
 from scipy.signal import find_peaks
 from scipy.spatial.distance import pdist, squareform
-from scipy.cluster.hierarchy import linkage
+from scipy.cluster.hierarchy import linkage, leaves_list
 import requests
 
 # Preloaded zip
@@ -43,9 +43,14 @@ def load_data_from_zip(zip_url):
 
 # Function to compute the ordered distance matrix
 def compute_serial_matrix(dist_mat, method="ward"):
+    if dist_mat.shape[0] < 2:
+        raise ValueError("Not enough data for clustering. Ensure at least two molecules are present.")
+    
     res_linkage = linkage(dist_mat, method=method)
-    res_order = np.array(res_linkage[:, :2], dtype=int).flatten()
-    ordered_dist_mat = dist_mat[res_order][:, res_order]
+    res_order = leaves_list(res_linkage)  # This will give the correct order of leaves
+
+    # Reorder distance matrix based on hierarchical clustering leaves
+    ordered_dist_mat = dist_mat[res_order, :][:, res_order]
     return ordered_dist_mat, res_order, res_linkage
 
 # Set up app
@@ -105,7 +110,7 @@ if data is not None:
             # Sonogram uses all available data, no filtering needed
             intensity_data = np.array(data['Normalized_Spectra_Intensity'].tolist())
 
-            if len(intensity_data) > 0:
+            if len(intensity_data) > 1:  # Ensure there are at least two rows
                 # Compute the distance matrix and serial matrix
                 dist_mat = squareform(pdist(intensity_data))
                 ordered_dist_mat, res_order, res_linkage = compute_serial_matrix(dist_mat, "ward")
@@ -125,8 +130,7 @@ if data is not None:
                 buf.seek(0)
                 st.download_button(label="Download Sonogram as PNG", data=buf, file_name="sonogram.png", mime="image/png")
             else:
-                st.error("No valid data available to generate the sonogram.")
-
+                st.error("Not enough data to generate the sonogram. Please ensure there are at least two molecules.")
         else:
             st.write("The code will take some time to run, please wait...")
 

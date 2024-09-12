@@ -13,7 +13,7 @@ from scipy.spatial.distance import pdist, squareform
 from scipy.cluster.hierarchy import linkage, leaves_list
 import requests
 
-# Preloaded zip
+# preloaded zip
 ZIP_URL = 'https://raw.githubusercontent.com/praneelshah07/MIT-Project/main/ASM_Vapor_Spectra.csv.zip'
 
 def load_data_from_zip(zip_url):
@@ -41,7 +41,7 @@ def load_data_from_zip(zip_url):
         st.error(f"Error extracting CSV from ZIP: {e}")
         return None
 
-# Function to compute the ordered distance matrix
+# compute the distance matrix
 def compute_serial_matrix(dist_mat, method="ward"):
     if dist_mat.shape[0] < 2:
         raise ValueError("Not enough data for clustering. Ensure at least two molecules are present.")
@@ -53,15 +53,15 @@ def compute_serial_matrix(dist_mat, method="ward"):
     ordered_dist_mat = dist_mat[res_order, :][:, res_order]
     return ordered_dist_mat, res_order, res_linkage
 
-# Set up app
+# set up
 st.title("Spectra Visualization App")
 
-# Load data from zip
+# load data
 data = load_data_from_zip(ZIP_URL)
 if data is not None:
     st.write("Using preloaded data from GitHub zip file.")
 
-# File uploader
+# file uploader
 uploaded_file = st.file_uploader("If you would like to enter another dataset, insert it here", type=["csv", "zip"])
 
 if uploaded_file is not None:
@@ -98,7 +98,7 @@ if data is not None:
 
     peak_finding_enabled = st.checkbox('Enable Peak Finding and Labeling', value=False)
 
-    # Independent sonogram plotting using all available data
+    # sonogram plotting using all data
     plot_sonogram = st.checkbox('Plot Sonogram for All Molecules', value=False)
 
     confirm_button = st.button('Confirm Selection and Start Plotting')
@@ -107,15 +107,14 @@ if data is not None:
         if plot_sonogram:
             st.write("The code will take some time to run, please wait...")
 
-            # Sonogram uses all available data, no filtering needed
             intensity_data = np.array(data['Normalized_Spectra_Intensity'].tolist())
 
-            if len(intensity_data) > 1:  # Ensure there are at least two rows
-                # Compute the distance matrix and serial matrix
+            if len(intensity_data) > 1:  
+                
                 dist_mat = squareform(pdist(intensity_data))
                 ordered_dist_mat, res_order, res_linkage = compute_serial_matrix(dist_mat, "ward")
 
-                # Plot the sonogram for all molecules
+                # Plot the sonogram 
                 fig, ax = plt.subplots(figsize=(12, 12))
                 ratio = int(len(intensity_data[0]) / len(intensity_data))
                 ax.imshow(np.array(intensity_data)[res_order], aspect=ratio, extent=[4000, 500, len(ordered_dist_mat), 0])
@@ -124,7 +123,7 @@ if data is not None:
 
                 st.pyplot(fig)
 
-                # Add a download button for the sonogram/heatmap
+                # Add a download button
                 buf = io.BytesIO()
                 fig.savefig(buf, format='png')
                 buf.seek(0)
@@ -161,14 +160,14 @@ if data is not None:
                         ax.text(peak_wavelength, peak_intensity + 0.05, f'{round(peak_wavelength, 1)}', 
                                 fontsize=10, ha='center', color=color_palette[i % len(color_palette)])
 
-            # Customize plot
+            # customize plot
             ax.set_xscale('log')
             ax.set_xlim([2.5, 20])
 
             major_ticks = [3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 20]
             ax.set_xticks(major_ticks)
 
-            # Number of label matches number of ticks
+            # number of label matches
             ax.set_xticklabels([str(tick) for tick in major_ticks])
 
             ax.tick_params(direction="in",
@@ -183,7 +182,7 @@ if data is not None:
 
             st.pyplot(fig)
 
-            # Download button for the spectra plot
+            # download button for the spectra plot
             buf = io.BytesIO()
             fig.savefig(buf, format='png')
             buf.seek(0)

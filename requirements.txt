@@ -4,3 +4,4 @@ plotly
 pandas
 scipy
 fastcluster
+rdkit-pypi

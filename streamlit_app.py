@@ -11,9 +11,11 @@ import io
 from scipy.signal import find_peaks
 from scipy.spatial.distance import pdist, squareform
 from scipy.cluster.hierarchy import linkage, leaves_list
-import requests
 
-# preloaded zip
+from rdkit import Chem  # Import RDKit
+from rdkit.Chem import rdFMCS
+
+# Preloaded zip
 ZIP_URL = 'https://raw.githubusercontent.com/praneelshah07/MIT-Project/main/ASM_Vapor_Spectra.csv.zip'
 
 def load_data_from_zip(zip_url):
@@ -41,7 +43,7 @@ def load_data_from_zip(zip_url):
         st.error(f"Error extracting CSV from ZIP: {e}")
         return None
 
-# compute the distance matrix
+# Function to compute the ordered distance matrix
 def compute_serial_matrix(dist_mat, method="ward"):
     if dist_mat.shape[0] < 2:
         raise ValueError("Not enough data for clustering. Ensure at least two molecules are present.")
@@ -53,15 +55,25 @@ def compute_serial_matrix(dist_mat, method="ward"):
     ordered_dist_mat = dist_mat[res_order, :][:, res_order]
     return ordered_dist_mat, res_order, res_linkage
 
-# set up
-st.title("Spectra Visualization App")
+# Function to filter molecules based on functional groups using RDKit
+def filter_molecules_by_functional_group(smiles_list, functional_group_smarts):
+    functional_group = Chem.MolFromSmarts(functional_group_smarts)
+    filtered_smiles = []
+    for smiles in smiles_list:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol and mol.HasSubstructMatch(functional_group):
+            filtered_smiles.append(smiles)
+    return filtered_smiles
 
-# load data
+# Set up app
+st.title("Spectra Visualization App with Functional Group Filtering")
+
+# Load data from zip
 data = load_data_from_zip(ZIP_URL)
 if data is not None:
     st.write("Using preloaded data from GitHub zip file.")
 
-# file uploader
+# File uploader
 uploaded_file = st.file_uploader("If you would like to enter another dataset, insert it here", type=["csv", "zip"])
 
 if uploaded_file is not None:
@@ -94,11 +106,23 @@ if data is not None:
     st.write(headerdata)
 
     unique_smiles = data['SMILES'].unique()
-    selected_smiles = st.multiselect('Select molecules by SMILES to highlight:', unique_smiles)
+    
+    # Functional group input
+    st.write("### Functional Group Filtering")
+    functional_group_smarts = st.text_input('Enter SMARTS pattern for functional group (e.g., "C#C" for alkynes):', '')
+
+    # Filter molecules based on the functional group
+    filtered_smiles = unique_smiles
+    if functional_group_smarts:
+        filtered_smiles = filter_molecules_by_functional_group(unique_smiles, functional_group_smarts)
+        st.write(f"Found {len(filtered_smiles)} molecules matching the functional group '{functional_group_smarts}'.")
+
+    # Use filtered molecules in multiselect for spectra plotting
+    selected_smiles = st.multiselect('Select molecules by SMILES to highlight (filtered):', filtered_smiles)
 
     peak_finding_enabled = st.checkbox('Enable Peak Finding and Labeling', value=False)
 
-    # sonogram plotting using all data
+    # Independent sonogram plotting using all available data
     plot_sonogram = st.checkbox('Plot Sonogram for All Molecules', value=False)
 
     confirm_button = st.button('Confirm Selection and Start Plotting')
@@ -107,14 +131,15 @@ if data is not None:
         if plot_sonogram:
             st.write("The code will take some time to run, please wait...")
 
+            # Sonogram uses all available data, no filtering needed
             intensity_data = np.array(data['Normalized_Spectra_Intensity'].tolist())
 
-            if len(intensity_data) > 1:  
-                
+            if len(intensity_data) > 1:  # Ensure there are at least two rows
+                # Compute the distance matrix and serial matrix
                 dist_mat = squareform(pdist(intensity_data))
                 ordered_dist_mat, res_order, res_linkage = compute_serial_matrix(dist_mat, "ward")
 
-                # Plot the sonogram 
+                # Plot the sonogram for all molecules
                 fig, ax = plt.subplots(figsize=(12, 12))
                 ratio = int(len(intensity_data[0]) / len(intensity_data))
                 ax.imshow(np.array(intensity_data)[res_order], aspect=ratio, extent=[4000, 500, len(ordered_dist_mat), 0])
@@ -123,7 +148,7 @@ if data is not None:
 
                 st.pyplot(fig)
 
-                # Add a download button
+                # Add a download button for the sonogram/heatmap
                 buf = io.BytesIO()
                 fig.savefig(buf, format='png')
                 buf.seek(0)
@@ -160,14 +185,14 @@ if data is not None:
                         ax.text(peak_wavelength, peak_intensity + 0.05, f'{round(peak_wavelength, 1)}', 
                                 fontsize=10, ha='center', color=color_palette[i % len(color_palette)])
 
-            # customize plot
+            # Customize plot
             ax.set_xscale('log')
             ax.set_xlim([2.5, 20])
 
             major_ticks = [3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 20]
             ax.set_xticks(major_ticks)
 
-            # number of label matches
+            # Number of label matches number of ticks
             ax.set_xticklabels([str(tick) for tick in major_ticks])
 
             ax.tick_params(direction="in",
@@ -182,7 +207,7 @@ if data is not None:
 
             st.pyplot(fig)
 
-            # download button for the spectra plot
+            # Download button for the spectra plot
             buf = io.BytesIO()
             fig.savefig(buf, format='png')
             buf.seek(0)

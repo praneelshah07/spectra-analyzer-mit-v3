@@ -16,7 +16,7 @@ import requests
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-# preloaded zip
+# Preloaded zip
 ZIP_URL = 'https://raw.githubusercontent.com/praneelshah07/MIT-Project/main/ASM_Vapor_Spectra.csv.zip'
 
 def load_data_from_zip(zip_url):
@@ -44,7 +44,7 @@ def load_data_from_zip(zip_url):
         st.error(f"Error extracting CSV from ZIP: {e}")
         return None
 
-# Function to filter molecules by functional group using RDKit
+# Function to filter molecules by functional group using SMARTS
 def filter_molecules_by_functional_group(smiles_list, functional_group_smarts):
     filtered_smiles = []
     for smiles in smiles_list:
@@ -53,7 +53,7 @@ def filter_molecules_by_functional_group(smiles_list, functional_group_smarts):
             filtered_smiles.append(smiles)
     return filtered_smiles
 
-# compute the distance matrix
+# Compute the distance matrix
 def compute_serial_matrix(dist_mat, method="ward"):
     if dist_mat.shape[0] < 2:
         raise ValueError("Not enough data for clustering. Ensure at least two molecules are present.")
@@ -65,15 +65,15 @@ def compute_serial_matrix(dist_mat, method="ward"):
     ordered_dist_mat = dist_mat[res_order, :][:, res_order]
     return ordered_dist_mat, res_order, res_linkage
 
-# set up
+# Set up
 st.title("Spectra Visualization App")
 
-# load data
+# Load data
 data = load_data_from_zip(ZIP_URL)
 if data is not None:
     st.write("Using preloaded data from GitHub zip file.")
 
-# file uploader
+# File uploader
 uploaded_file = st.file_uploader("If you would like to enter another dataset, insert it here", type=["csv", "zip"])
 
 if uploaded_file is not None:
@@ -107,19 +107,43 @@ if data is not None:
 
     unique_smiles = data['SMILES'].unique()
 
-    # Add input for functional group filtering
-    functional_group_input = st.text_input("Enter the functional group SMARTS pattern (e.g., '[CX4][CX4]' for C-C):", "[CX4][CX4]")
+    # Option to filter molecules using SMARTS patterns
+    use_smarts_filter = st.checkbox('Apply SMARTS Filtering', value=False)
 
-    # Filter molecules based on the functional group
-    filtered_smiles = filter_molecules_by_functional_group(unique_smiles, functional_group_input)
+    # Initialize the filtered dataset and highlight options
+    filtered_smiles = unique_smiles
 
-    # Update the selection options with filtered molecules
+    if use_smarts_filter:
+        # Predefined functional groups and their SMARTS patterns
+        functional_groups = {
+            "Single C-C Bond": "[CX4][CX4]",
+            "Double C=C Bond": "[CX3]=[CX3]",
+            "Triple C#C Bond": "[CX2]#[CX2]",
+            "Aromatic Ring": "c1ccccc1",
+            "Alcohol (R-OH)": "[OX2H]",
+            "Ketone (R-C(=O)-R')": "[CX3](=O)[#6]"
+        }
+
+        # Dropdown for functional group selection
+        selected_functional_group = st.selectbox(
+            "Select a functional group to filter molecules:",
+            list(functional_groups.keys())
+        )
+
+        # Get the SMARTS pattern for the selected functional group
+        functional_group_smarts = functional_groups[selected_functional_group]
+
+        # Filter molecules based on the selected functional group
+        filtered_smiles = filter_molecules_by_functional_group(unique_smiles, functional_group_smarts)
+        st.write(f"Filtered dataset to {len(filtered_smiles)} molecules using SMARTS pattern.")
+
+    # Multiselect for highlighting molecules (now using the filtered list)
     selected_smiles = st.multiselect('Select molecules by SMILES to highlight:', filtered_smiles)
 
     peak_finding_enabled = st.checkbox('Enable Peak Finding and Labeling', value=False)
 
-    # sonogram plotting using all data
-    plot_sonogram = st.checkbox('Plot Sonogram for All Molecules', value=False)
+    # Sonogram plotting using all data
+    plot_sonogram = st.checkbox('Plot Sonogram for Selected Molecules', value=False)
 
     confirm_button = st.button('Confirm Selection and Start Plotting')
 
@@ -127,7 +151,8 @@ if data is not None:
         if plot_sonogram:
             st.write("The code will take some time to run, please wait...")
 
-            intensity_data = np.array(data['Normalized_Spectra_Intensity'].tolist())
+            # Use only the filtered molecules for plotting
+            intensity_data = np.array(data[data['SMILES'].isin(filtered_smiles)]['Normalized_Spectra_Intensity'].tolist())
 
             if len(intensity_data) > 1:  
                 
@@ -161,7 +186,7 @@ if data is not None:
             random.shuffle(color_palette)
 
             target_spectra = {}
-            for smiles, spectra in data[['SMILES', 'Normalized_Spectra_Intensity']].values:
+            for smiles, spectra in data[data['SMILES'].isin(filtered_smiles)][['SMILES', 'Normalized_Spectra_Intensity']].values:
                 if smiles in selected_smiles:
                     target_spectra[smiles] = spectra
                 else:
@@ -180,14 +205,14 @@ if data is not None:
                         ax.text(peak_wavelength, peak_intensity + 0.05, f'{round(peak_wavelength, 1)}', 
                                 fontsize=10, ha='center', color=color_palette[i % len(color_palette)])
 
-            # customize plot
+            # Customize plot
             ax.set_xscale('log')
             ax.set_xlim([2.5, 20])
 
             major_ticks = [3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 20]
             ax.set_xticks(major_ticks)
 
-            # number of label matches
+            # Number of label matches
             ax.set_xticklabels([str(tick) for tick in major_ticks])
 
             ax.tick_params(direction="in",
@@ -202,7 +227,7 @@ if data is not None:
 
             st.pyplot(fig)
 
-            # download button for the spectra plot
+            # Download button for the spectra plot
             buf = io.BytesIO()
             fig.savefig(buf, format='png')
             buf.seek(0)

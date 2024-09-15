@@ -114,28 +114,17 @@ if data is not None:
     filtered_smiles = unique_smiles
 
     if use_smarts_filter:
-        # Predefined functional groups and their SMARTS patterns
-        functional_groups = {
-            "Single C-C Bond": "[CX4][CX4]",
-            "Double C=C Bond": "[CX3]=[CX3]",
-            "Triple C#C Bond": "[CX2]#[CX2]",
-            "Aromatic Ring": "c1ccccc1",
-            "Alcohol (R-OH)": "[OX2H]",
-            "Ketone (R-C(=O)-R')": "[CX3](=O)[#6]"
-        }
+        # Input field for the SMARTS pattern
+        functional_group_smarts = st.text_input("Enter a SMARTS pattern to filter molecules:", "")
 
-        # Dropdown for functional group selection
-        selected_functional_group = st.selectbox(
-            "Select a functional group to filter molecules:",
-            list(functional_groups.keys())
-        )
-
-        # Get the SMARTS pattern for the selected functional group
-        functional_group_smarts = functional_groups[selected_functional_group]
-
-        # Filter molecules based on the selected functional group
-        filtered_smiles = filter_molecules_by_functional_group(unique_smiles, functional_group_smarts)
-        st.write(f"Filtered dataset to {len(filtered_smiles)} molecules using SMARTS pattern.")
+        # Check if a SMARTS pattern was provided
+        if functional_group_smarts:
+            try:
+                # Filter molecules based on the provided SMARTS pattern
+                filtered_smiles = filter_molecules_by_functional_group(unique_smiles, functional_group_smarts)
+                st.write(f"Filtered dataset to {len(filtered_smiles)} molecules using SMARTS pattern.")
+            except Exception as e:
+                st.error(f"Invalid SMARTS pattern: {e}")
 
     # Multiselect for highlighting molecules (now using the filtered list)
     selected_smiles = st.multiselect('Select molecules by SMILES to highlight:', filtered_smiles)

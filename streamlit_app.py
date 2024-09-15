@@ -13,6 +13,9 @@ from scipy.spatial.distance import pdist, squareform
 from scipy.cluster.hierarchy import linkage, leaves_list
 import requests
 
+from rdkit import Chem
+from rdkit.Chem import AllChem
+
 # preloaded zip
 ZIP_URL = 'https://raw.githubusercontent.com/praneelshah07/MIT-Project/main/ASM_Vapor_Spectra.csv.zip'
 
@@ -40,6 +43,15 @@ def load_data_from_zip(zip_url):
     except Exception as e:
         st.error(f"Error extracting CSV from ZIP: {e}")
         return None
+
+# Function to filter molecules by functional group using RDKit
+def filter_molecules_by_functional_group(smiles_list, functional_group_smarts):
+    filtered_smiles = []
+    for smiles in smiles_list:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol and mol.HasSubstructMatch(Chem.MolFromSmarts(functional_group_smarts)):
+            filtered_smiles.append(smiles)
+    return filtered_smiles
 
 # compute the distance matrix
 def compute_serial_matrix(dist_mat, method="ward"):
@@ -94,7 +106,15 @@ if data is not None:
     st.write(headerdata)
 
     unique_smiles = data['SMILES'].unique()
-    selected_smiles = st.multiselect('Select molecules by SMILES to highlight:', unique_smiles)
+
+    # Add input for functional group filtering
+    functional_group_input = st.text_input("Enter the functional group SMARTS pattern (e.g., '[CX4][CX4]' for C-C):", "[CX4][CX4]")
+
+    # Filter molecules based on the functional group
+    filtered_smiles = filter_molecules_by_functional_group(unique_smiles, functional_group_input)
+
+    # Update the selection options with filtered molecules
+    selected_smiles = st.multiselect('Select molecules by SMILES to highlight:', filtered_smiles)
 
     peak_finding_enabled = st.checkbox('Enable Peak Finding and Labeling', value=False)
 

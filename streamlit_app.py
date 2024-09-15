@@ -16,7 +16,7 @@ import requests
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-# preloaded zip
+# Preloaded zip
 ZIP_URL = 'https://raw.githubusercontent.com/praneelshah07/MIT-Project/main/ASM_Vapor_Spectra.csv.zip'
 
 def load_data_from_zip(zip_url):
@@ -44,7 +44,24 @@ def load_data_from_zip(zip_url):
         st.error(f"Error extracting CSV from ZIP: {e}")
         return None
 
-# filter molecules by functional group using SMARTS
+# Function to bin the spectra data
+def bin_spectra(spectra, bin_size, bin_type='wavelength'):
+    wavenumber = np.arange(4000, 500, -1)
+    wavelength = 10000 / wavenumber  # Convert wavenumber to wavelength
+
+    if bin_type == 'wavelength':
+        bins = np.arange(wavelength.min(), wavelength.max(), bin_size)
+        digitized = np.digitize(wavelength, bins)
+    elif bin_type == 'wavenumber':
+        bins = np.arange(wavenumber.min(), wavenumber.max(), bin_size)
+        digitized = np.digitize(wavenumber, bins)
+    else:
+        return spectra  # No binning if the type is not recognized
+
+    binned_spectra = np.array([np.mean(spectra[digitized == i]) for i in range(1, len(bins))])
+    return binned_spectra, bins[:-1]
+
+# Function to filter molecules by functional group using SMARTS
 def filter_molecules_by_functional_group(smiles_list, functional_group_smarts):
     filtered_smiles = []
     for smiles in smiles_list:
@@ -53,7 +70,7 @@ def filter_molecules_by_functional_group(smiles_list, functional_group_smarts):
             filtered_smiles.append(smiles)
     return filtered_smiles
 
-# distance matrix
+# Compute the distance matrix
 def compute_serial_matrix(dist_mat, method="ward"):
     if dist_mat.shape[0] < 2:
         raise ValueError("Not enough data for clustering. Ensure at least two molecules are present.")
@@ -65,15 +82,15 @@ def compute_serial_matrix(dist_mat, method="ward"):
     ordered_dist_mat = dist_mat[res_order, :][:, res_order]
     return ordered_dist_mat, res_order, res_linkage
 
-# set up
+# Set up
 st.title("Spectra Visualization App")
 
-# load data
+# Load data
 data = load_data_from_zip(ZIP_URL)
 if data is not None:
     st.write("Using preloaded data from GitHub zip file.")
 
-# file uploader
+# File uploader
 uploaded_file = st.file_uploader("If you would like to enter another dataset, insert it here", type=["csv", "zip"])
 
 if uploaded_file is not None:
@@ -107,17 +124,17 @@ if data is not None:
 
     unique_smiles = data['SMILES'].unique()
 
-    # option to filter molecules using SMARTS patterns
+    # Option to filter molecules using SMARTS patterns
     use_smarts_filter = st.checkbox('Apply SMARTS Filtering', value=False)
 
-    # filtered dataset and highlight options
+    # Initialize the filtered dataset and highlight options
     filtered_smiles = unique_smiles
 
     if use_smarts_filter:
-        # input for the SMARTS pattern
+        # Input field for the SMARTS pattern
         functional_group_smarts = st.text_input("Enter a SMARTS pattern to filter molecules:", "")
 
-        # check if a SMARTS pattern was provided
+        # Check if a SMARTS pattern was provided
         if functional_group_smarts:
             try:
                 # Filter molecules based on the provided SMARTS pattern
@@ -126,13 +143,17 @@ if data is not None:
             except Exception as e:
                 st.error(f"Invalid SMARTS pattern: {e}")
 
-    # multiselect for highlighting molecules (now using the filtered list)
+    # Binning options
+    bin_type = st.selectbox('Select binning type:', ['None', 'Wavelength', 'Wavenumber'])
+    bin_size = st.number_input('Enter bin size:', min_value=0.01, max_value=10.0, value=0.1)
+
+    # Multiselect for highlighting molecules (now using the filtered list)
     selected_smiles = st.multiselect('Select molecules by SMILES to highlight:', filtered_smiles)
 
     peak_finding_enabled = st.checkbox('Enable Peak Finding and Labeling', value=False)
 
     # Sonogram plotting using all data
-    plot_sonogram = st.checkbox('Plot Sonogram for All or Filtered Molecules', value=False)
+    plot_sonogram = st.checkbox('Plot Sonogram for Selected Molecules', value=False)
 
     confirm_button = st.button('Confirm Selection and Start Plotting')
 
@@ -140,7 +161,7 @@ if data is not None:
         if plot_sonogram:
             st.write("The code will take some time to run, please wait...")
 
-            # use only the filtered molecules for plotting
+            # Use only the filtered molecules for plotting
             intensity_data = np.array(data[data['SMILES'].isin(filtered_smiles)]['Normalized_Spectra_Intensity'].tolist())
 
             if len(intensity_data) > 1:  
@@ -148,7 +169,7 @@ if data is not None:
                 dist_mat = squareform(pdist(intensity_data))
                 ordered_dist_mat, res_order, res_linkage = compute_serial_matrix(dist_mat, "ward")
 
-                # plot the sonogram 
+                # Plot the sonogram 
                 fig, ax = plt.subplots(figsize=(12, 12))
                 ratio = int(len(intensity_data[0]) / len(intensity_data))
                 ax.imshow(np.array(intensity_data)[res_order], aspect=ratio, extent=[4000, 500, len(ordered_dist_mat), 0])
@@ -157,7 +178,7 @@ if data is not None:
 
                 st.pyplot(fig)
 
-                # add a download button
+                # Add a download button
                 buf = io.BytesIO()
                 fig.savefig(buf, format='png')
                 buf.seek(0)
@@ -177,38 +198,49 @@ if data is not None:
             target_spectra = {}
             for smiles, spectra in data[data['SMILES'].isin(filtered_smiles)][['SMILES', 'Normalized_Spectra_Intensity']].values:
                 if smiles in selected_smiles:
+                    # Apply binning if selected
+                    if bin_type != 'None':
+                        spectra, bins = bin_spectra(spectra, bin_size, bin_type.lower())
+                        x_axis = bins
+                    else:
+                        x_axis = wavelength
                     target_spectra[smiles] = spectra
                 else:
-                    ax.fill_between(wavelength, 0, spectra, color="k", alpha=0.01)
+                    if bin_type != 'None':
+                        spectra, bins = bin_spectra(spectra, bin_size, bin_type.lower())
+                        x_axis = bins
+                    else:
+                        x_axis = wavelength
+                    ax.fill_between(x_axis, 0, spectra, color="k", alpha=0.01)
 
             for i, smiles in enumerate(target_spectra):
                 spectra = target_spectra[smiles]
-                ax.fill_between(wavelength, 0, spectra, color=color_palette[i % len(color_palette)], 
+                ax.fill_between(x_axis, 0, spectra, color=color_palette[i % len(color_palette)], 
                                 alpha=0.5, label=f"{smiles}")
 
                 if peak_finding_enabled:
                     peaks, _ = find_peaks(spectra, height=0.05)
                     for peak in peaks:
-                        peak_wavelength = wavelength[peak]
+                        peak_wavelength = x_axis[peak]
                         peak_intensity = spectra[peak]
                         ax.text(peak_wavelength, peak_intensity + 0.05, f'{round(peak_wavelength, 1)}', 
                                 fontsize=10, ha='center', color=color_palette[i % len(color_palette)])
 
-            # customize plot
+            # Customize plot
             ax.set_xscale('log')
-            ax.set_xlim([2.5, 20])
+            ax.set_xlim([x_axis.min(), x_axis.max()])
 
             major_ticks = [3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 20]
             ax.set_xticks(major_ticks)
 
-            # number of label matches
+            # Number of label matches
             ax.set_xticklabels([str(tick) for tick in major_ticks])
 
             ax.tick_params(direction="in",
                 labelbottom=True, labeltop=False, labelleft=True, labelright=False,
                 bottom=True, top=True, left=True, right=True)
 
-            ax.set_xlabel("Wavelength ($\mu$m)", fontsize=22)
+            ax.set_xlabel("Wavelength ($\mu$m)" if bin_type == 'Wavelength' else "Wavenumber (cm⁻¹)", fontsize=22)
             ax.set_ylabel("Absorbance (Normalized to 1)", fontsize=22)
 
             if selected_smiles:
@@ -216,7 +248,7 @@ if data is not None:
 
             st.pyplot(fig)
 
-            # download button for the spectra plot
+            # Download button for the spectra plot
             buf = io.BytesIO()
             fig.savefig(buf, format='png')
             buf.seek(0)
